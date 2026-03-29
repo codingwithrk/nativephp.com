@@ -158,7 +158,7 @@
 
             @php
                 $isLegacyLicense = $license->isLegacy();
-                $daysUntilExpiry = $license->expires_at ? $license->expires_at->diffInDays(now()) : null;
+                $daysUntilExpiry = $license->expires_at ? (int) now()->diffInDays($license->expires_at, false) : null;
                 $needsRenewal = $isLegacyLicense && $daysUntilExpiry !== null;
             @endphp
 
@@ -420,7 +420,7 @@
             const nameInput = document.getElementById('edit_name');
             const emailInput = document.getElementById('edit_assigned_email');
 
-            form.action = '/customer/licenses/{{ $license->key }}/sub-licenses/' + subLicenseId;
+            form.action = '/dashboard/licenses/{{ $license->key }}/sub-licenses/' + subLicenseId;
             nameInput.value = currentName || '';
             emailInput.value = currentEmail || '';
             modal.classList.remove('hidden');
