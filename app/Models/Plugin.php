@@ -64,6 +64,13 @@ class Plugin extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Plugin $plugin): void {
+            if ($plugin->isDirty('name') && $plugin->name && ! $plugin->isDirty('is_official')) {
+                $vendor = explode('/', $plugin->name)[0] ?? null;
+                $plugin->is_official = $vendor === 'nativephp';
+            }
+        });
+
         static::created(function (Plugin $plugin): void {
             $plugin->recordActivity(
                 PluginActivityType::Submitted,
@@ -179,11 +186,13 @@ class Plugin extends Model
         }
 
         // Get the lowest active price for the user's eligible tiers
-        return $this->prices()
+        $bestPrice = $this->prices()
             ->active()
             ->forTiers($eligibleTiers)
             ->orderBy('amount', 'asc')
             ->first();
+
+        return $bestPrice;
     }
 
     /**

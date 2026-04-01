@@ -95,38 +95,42 @@
         <x-divider />
 
         <div class="mt-2 flex flex-col-reverse gap-8 lg:flex-row lg:items-start">
-            {{-- Main content - README --}}
-            <div class="min-w-0 grow">
-                @if ($plugin->readme_html)
-                    <x-plugin-toc />
-                @endif
-
-                <article
-                    x-init="
-                        () => {
-                            motion.inView($el, () => {
-                                gsap.fromTo(
-                                    $el,
-                                    { autoAlpha: 0, y: 5 },
-                                    { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power1.out' },
-                                )
-                            })
-                        }
-                    "
-                    class="prose min-w-0 max-w-none grow text-gray-600 dark:text-gray-400 dark:prose-headings:text-white"
-                    aria-labelledby="plugin-title"
-                >
+                {{-- Main content - README --}}
+                <div class="min-w-0 grow">
                     @if ($plugin->readme_html)
-                        {!! $plugin->readme_html !!}
-                @else
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-slate-800/50">
-                        <p class="text-gray-500 dark:text-gray-400">
-                            README not available yet.
-                        </p>
-                    </div>
+                        <div class="sticky top-20 z-10 mb-4 flex justify-end">
+                            <div class="rounded-full bg-white shadow-sm dark:bg-zinc-800">
+                                <x-plugin-toc />
+                            </div>
+                        </div>
                     @endif
-                </article>
-            </div>
+
+                    <article
+                        x-init="
+                            () => {
+                                motion.inView($el, () => {
+                                    gsap.fromTo(
+                                        $el,
+                                        { autoAlpha: 0, y: 5 },
+                                        { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power1.out' },
+                                    )
+                                })
+                            }
+                        "
+                        class="prose min-w-0 max-w-none grow text-gray-600 prose-headings:scroll-mt-20 dark:text-gray-400 dark:prose-headings:text-white"
+                        aria-labelledby="plugin-title"
+                    >
+                        @if ($plugin->readme_html)
+                            {!! $plugin->readme_html !!}
+                        @else
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-slate-800/50">
+                                <p class="text-gray-500 dark:text-gray-400">
+                                    README not available yet.
+                                </p>
+                            </div>
+                        @endif
+                    </article>
+                </div>
 
             {{-- Sidebar - Plugin details --}}
             <aside
@@ -147,8 +151,8 @@
                 @if ($plugin->isPaid() && $bestPrice && $plugin->is_active)
                     <div class="mb-4 rounded-2xl border-2 border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 p-6 dark:border-indigo-400 dark:from-indigo-950/50 dark:to-purple-950/50">
                         <div class="text-center">
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Price</p>
                             @if ($hasDiscount && $regularPrice)
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Price</p>
                                 <p class="mt-1 text-lg text-gray-400 line-through dark:text-gray-500">
                                     ${{ number_format($regularPrice->amount / 100) }}
                                 </p>
@@ -158,12 +162,14 @@
                                 <p class="mt-1 text-xs font-medium text-green-600 dark:text-green-400">
                                     {{ $bestPrice->tier->label() }} pricing applied
                                 </p>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">One-time purchase</p>
                             @else
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Price</p>
                                 <p class="mt-1 text-4xl font-bold text-gray-900 dark:text-white">
                                     ${{ number_format($bestPrice->amount / 100) }}
                                 </p>
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">One-time purchase</p>
                             @endif
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">One-time purchase</p>
                         </div>
                         <form action="{{ route('cart.add', $plugin->routeParams()) }}" method="POST" class="mt-4">
                             @csrf
@@ -237,6 +243,14 @@
                                 @else
                                     <span class="text-sm text-gray-500 dark:text-gray-400">—</span>
                                 @endif
+                            </dd>
+                        </div>
+
+                        {{-- NativePHP Mobile --}}
+                        <div class="col-span-2 rounded-xl bg-gray-50 p-3 dark:bg-slate-700/30">
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">NativePHP Mobile</dt>
+                            <dd class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                {{ $plugin->mobile_min_version ?? '—' }}
                             </dd>
                         </div>
 
@@ -341,6 +355,34 @@
                                 </li>
                             @endforeach
                         </ul>
+                    </div>
+                @endif
+
+                {{-- Included with Ultra --}}
+                @if ($plugin->isPaid() && $plugin->isOfficial())
+                    <div class="mt-4 rounded-2xl border border-zinc-300 bg-gradient-to-br from-zinc-100 to-zinc-200 p-6 dark:border-zinc-600 dark:from-zinc-800 dark:to-zinc-900">
+                        <div class="flex items-start gap-3">
+                            <div class="shrink-0 text-zinc-700 dark:text-zinc-300">
+                                <x-heroicon-s-bolt class="size-6" />
+                            </div>
+                            <div>
+                                <p class="font-medium text-zinc-900 dark:text-zinc-100">Included with Ultra</p>
+                                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                                    You don't need to purchase any first-party NativePHP plugins with Ultra &mdash; they're all included for you and your team from just ${{ config('subscriptions.plans.max.price_monthly') }}/month.
+                                </p>
+                                @auth
+                                    <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
+                                        You can still purchase this plugin to keep access even if you cancel your subscription.
+                                    </p>
+                                @endauth
+                                <a
+                                    href="{{ route('pricing') }}"
+                                    class="mt-4 inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                                >
+                                    Learn more
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 @endif
 

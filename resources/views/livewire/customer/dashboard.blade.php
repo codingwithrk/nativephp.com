@@ -23,16 +23,39 @@
         </flux:callout>
     @endif
 
+    {{-- Ultra Upsell Banner --}}
+    @if(!$this->hasUltraSubscription)
+        <div class="mb-6 rounded-lg border border-zinc-300 bg-gradient-to-r from-zinc-100 to-zinc-200 p-6 dark:border-zinc-600 dark:from-zinc-800 dark:to-zinc-900">
+            <div class="flex items-start">
+                <div class="shrink-0 text-zinc-700 dark:text-zinc-300">
+                    <x-heroicon-s-bolt class="size-6" />
+                </div>
+                <div class="ml-4 flex-1">
+                    <h3 class="font-medium text-zinc-900 dark:text-zinc-100">
+                        Upgrade to NativePHP Ultra
+                    </h3>
+                    <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                        Access all first-party plugins at no extra cost, premium support, team management, and more.
+                    </p>
+                    <div class="mt-4">
+                        <a href="{{ route('pricing') }}" class="inline-flex items-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
+                            Learn more
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Banners --}}
     <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         @feature(App\Features\ShowPlugins::class)
-            @if(auth()->user()->shouldSeeFreePluginsOffer())
+            @if(auth()->user()->shouldSeeFreePluginsOffer() && !$this->hasUltraSubscription)
                 <x-free-plugins-offer-banner :inline="true" />
             @endif
         @else
             <x-discounts-banner :inline="true" />
         @endfeature
-        <livewire:wall-of-love-banner :inline="true" />
     </div>
 
     {{-- Dashboard Cards --}}
@@ -79,6 +102,31 @@
                 :href="$this->renewalLicenseKey ? route('license.renewal', $this->renewalLicenseKey) : route('pricing')"
                 :link-text="$this->renewalLicenseKey ? 'Renew license' : 'View plans'"
             />
+        @endif
+
+        {{-- Team Card --}}
+        @if($this->hasUltraSubscription)
+            @if($this->ownedTeam)
+                <x-dashboard-card
+                    title="Team"
+                    :value="$this->ownedTeam->name"
+                    icon="user-group"
+                    color="purple"
+                    :href="route('customer.team.index')"
+                    link-text="Manage members"
+                    :description="$this->teamMemberCount === 1 ? '1 active member' : $this->teamMemberCount . ' active members'"
+                />
+            @else
+                <x-dashboard-card
+                    title="Team"
+                    value="No team yet"
+                    icon="user-group"
+                    color="gray"
+                    :href="route('customer.team.index')"
+                    link-text="Create a team"
+                    description="Invite up to {{ config('subscriptions.plans.max.included_seats') - 1 }} members to share Ultra benefits ({{ config('subscriptions.plans.max.included_seats') }} seats total)"
+                />
+            @endif
         @endif
 
         {{-- Premium Plugins Card --}}

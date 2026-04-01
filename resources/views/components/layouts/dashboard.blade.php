@@ -111,17 +111,66 @@
                     Purchase History
                 </flux:sidebar.item>
 
-                <flux:sidebar.group expandable heading="Community" class="grid">
+                @if(auth()->user()->hasActiveUltraSubscription())
+                    <flux:sidebar.item icon="bolt" href="{{ route('customer.ultra.index') }}" :current="request()->routeIs('customer.ultra.*')">
+                        Ultra
+                    </flux:sidebar.item>
+                @endif
+
+                @if(auth()->user()->hasUltraAccess())
+                    <flux:sidebar.item icon="chat-bubble-left-right" href="{{ route('customer.support.tickets') }}" :current="request()->routeIs('customer.support.*')">
+                        Support Tickets
+                    </flux:sidebar.item>
+                @endif
+
+                <flux:sidebar.group expandable :expanded="false" heading="Community" class="mt-4 grid">
                     <flux:sidebar.item href="{{ route('customer.showcase.index') }}" :current="request()->routeIs('customer.showcase.*')">
                         Showcase
                     </flux:sidebar.item>
+                    @if(auth()->user()->licenses()->where('created_at', '<', '2025-06-01')->exists())
+                        @php
+                            $wallOfLoveSubmission = auth()->user()->wallOfLoveSubmissions()->first();
+                            $wallOfLoveUrl = $wallOfLoveSubmission
+                                ? route('customer.wall-of-love.edit', $wallOfLoveSubmission)
+                                : route('customer.wall-of-love.create');
+                        @endphp
+                        <flux:sidebar.item href="{{ $wallOfLoveUrl }}" :current="request()->routeIs('customer.wall-of-love.*')">
+                            Wall of Love
+                        </flux:sidebar.item>
+                    @endif
                     <flux:sidebar.item href="https://discord.gg/nativephp" target="_blank">
                         Discord
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
+                @if(auth()->user()->hasActiveUltraSubscription() || auth()->user()->isUltraTeamMember())
+                    @php
+                        $ownedTeam = auth()->user()->ownedTeam;
+                        $teamMemberships = auth()->user()->activeTeamMemberships();
+                    @endphp
+                    <flux:sidebar.group expandable :expanded="false" heading="Teams" class="mt-4 grid">
+                        @if($ownedTeam)
+                            <flux:sidebar.item href="{{ route('customer.team.index') }}" :current="request()->routeIs('customer.team.index')">
+                                {{ $ownedTeam->name }}
+                            </flux:sidebar.item>
+                        @endif
+
+                        @foreach($teamMemberships as $membership)
+                            <flux:sidebar.item href="{{ route('customer.team.show', $membership->team) }}" :current="request()->routeIs('customer.team.show') && request()->route('team')?->id === $membership->team->id">
+                                {{ $membership->team->name }}
+                            </flux:sidebar.item>
+                        @endforeach
+
+                        @if(! $ownedTeam && $teamMemberships->isEmpty() && auth()->user()->hasActiveUltraSubscription())
+                            <flux:sidebar.item href="{{ route('customer.team.index') }}" :current="request()->routeIs('customer.team.index')">
+                                Create Team
+                            </flux:sidebar.item>
+                        @endif
+                    </flux:sidebar.group>
+                @endif
+
                 @feature(App\Features\ShowPlugins::class)
-                    <flux:sidebar.group expandable heading="Developer" class="grid">
+                    <flux:sidebar.group expandable :expanded="false" heading="Developer" class="mt-4 grid">
                         <flux:sidebar.item href="{{ route('customer.developer.onboarding') }}" :current="request()->routeIs('customer.developer.onboarding', 'customer.developer.dashboard')">
                             Hub
                         </flux:sidebar.item>
@@ -171,7 +220,7 @@
         </flux:sidebar>
 
         {{-- Mobile header with sidebar toggle --}}
-        <flux:header class="lg:hidden">
+        <flux:header class="lg:hidden sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             <flux:spacer />
@@ -198,6 +247,8 @@
         <flux:main container>
             {{ $slot }}
         </flux:main>
+
+        <x-impersonate::banner/>
 
         @livewireScriptConfig
         @fluxScripts

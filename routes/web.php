@@ -20,6 +20,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ShowBlogController;
 use App\Http\Controllers\ShowcaseController;
 use App\Http\Controllers\ShowDocumentationController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamUserController;
+use App\Http\Controllers\UltraController;
 use App\Livewire\ClaimDonationLicense;
 use App\Livewire\Customer\Dashboard;
 use App\Livewire\Customer\Developer\Onboarding;
@@ -81,7 +84,7 @@ Route::post('opencollective/contribution', [OpenCollectiveWebhookController::cla
 Route::get('opencollective/claim', ClaimDonationLicense::class)->name('opencollective.claim');
 
 Route::view('/', 'welcome')->name('welcome');
-Route::redirect('pricing', 'blog/nativephp-for-mobile-is-now-free')->name('pricing');
+Route::view('ultra', 'pricing')->name('pricing');
 Route::view('alt-pricing', 'alt-pricing')->name('alt-pricing')->middleware('signed');
 Route::get('course', function () {
     $user = auth()->user();
@@ -222,9 +225,11 @@ Route::get('docs/{platform}/{page?}', function (string $platform, $page = null) 
     ->where('page', '.*')
     ->name('docs.latest');
 
+// Docs platform chooser
+Route::view('docs', 'docs.chooser')->name('docs');
+
 // Forward unversioned requests to the latest version
-Route::get('docs/{page?}', function ($page = null) {
-    $page ??= 'introduction';
+Route::get('docs/{page}', function (string $page) {
     $version = session('viewing_docs_version', '1');
     $platform = session('viewing_docs_platform', 'mobile');
 
@@ -258,14 +263,12 @@ Route::get('docs/{page?}', function ($page = null) {
             'page' => 'introduction',
         ]);
     }
-})->name('docs')->where('page', '.*');
+})->name('docs.unversioned')->where('page', '.*');
 
 Route::get('order/{checkoutSessionId}', OrderSuccess::class)->name('order.success');
 
-// License renewal routes
+// License renewal routes (public success page)
 Route::get('license/{license:key}/renewal/success', LicenseRenewalSuccess::class)->name('license.renewal.success');
-Route::get('license/{license}/renewal', [LicenseRenewalController::class, 'show'])->name('license.renewal');
-Route::post('license/{license}/renewal/checkout', [LicenseRenewalController::class, 'createCheckoutSession'])->name('license.renewal.checkout');
 
 // Customer authentication routes
 Route::middleware(['guest'])->group(function (): void {
@@ -317,12 +320,21 @@ Route::get('callback', function (Request $request) {
     return response('Goodbye');
 })->name('callback');
 
+// Team invitation acceptance (public route - no auth required)
+Route::get('team/invitation/{token}', [TeamUserController::class, 'accept'])->name('team.invitation.accept');
+
 // Dashboard route
 Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class)])->group(function (): void {
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
 });
 
 // Customer license management routes
+Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class)])->prefix('dashboard')->group(function (): void {
+    // License renewal routes (no customer. prefix to preserve route names)
+    Route::get('license/{license}/renewal', [LicenseRenewalController::class, 'show'])->name('license.renewal');
+    Route::post('license/{license}/renewal/checkout', [LicenseRenewalController::class, 'createCheckoutSession'])->name('license.renewal.checkout');
+});
+
 Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class)])->prefix('dashboard')->name('customer.')->group(function (): void {
     // Settings page
     Route::livewire('settings', Settings::class)->name('settings');
@@ -341,6 +353,12 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
 
     // Purchase history page
     Route::livewire('purchase-history', App\Livewire\Customer\PurchaseHistory\Index::class)->name('purchase-history.index');
+
+    // Support tickets
+    Route::livewire('support/tickets', App\Livewire\Customer\Support\Index::class)->name('support.tickets');
+    Route::livewire('support/tickets/create', App\Livewire\Customer\Support\Create::class)->name('support.tickets.create');
+    Route::livewire('support/tickets/{supportTicket}', App\Livewire\Customer\Support\Show::class)->name('support.tickets.show');
+
     Route::livewire('licenses/{licenseKey}', Show::class)->name('licenses.show');
     Route::patch('licenses/{licenseKey}', [CustomerLicenseController::class, 'update'])->name('licenses.update');
     Route::post('plugin-license-key/rotate', [CustomerLicenseController::class, 'rotatePluginLicenseKey'])->name('plugin-license-key.rotate');
@@ -348,6 +366,7 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
 
     // Wall of Love submission
     Route::livewire('wall-of-love/create', Create::class)->name('wall-of-love.create');
+    Route::livewire('wall-of-love/{wallOfLoveSubmission}/edit', App\Livewire\Customer\WallOfLove\Edit::class)->name('wall-of-love.edit');
 
     // Showcase submissions
     Route::livewire('showcase', App\Livewire\Customer\Showcase\Index::class)->name('showcase.index');
@@ -365,6 +384,18 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
 
         return $user->redirectToBillingPortal(route('dashboard'));
     })->name('billing-portal');
+
+    // Ultra benefits page
+    Route::get('ultra', [UltraController::class, 'index'])->name('ultra.index');
+
+    // Team management routes
+    Route::get('team', [TeamController::class, 'index'])->name('team.index');
+    Route::post('team', [TeamController::class, 'store'])->name('team.store');
+    Route::patch('team', [TeamController::class, 'update'])->name('team.update');
+    Route::post('team/invite', [TeamUserController::class, 'invite'])->name('team.invite');
+    Route::delete('team/users/{teamUser}', [TeamUserController::class, 'remove'])->name('team.users.remove');
+    Route::post('team/users/{teamUser}/resend', [TeamUserController::class, 'resend'])->name('team.users.resend');
+    Route::get('team/{team}', [TeamController::class, 'show'])->name('team.show');
 
     // Sub-license management routes
     Route::post('licenses/{licenseKey}/sub-licenses', [CustomerSubLicenseController::class, 'store'])->name('licenses.sub-licenses.store');
@@ -405,6 +436,9 @@ Route::middleware(EnsureFeaturesAreActive::using(ShowPlugins::class))->group(fun
     Route::get('cart/status/{sessionId}', [CartController::class, 'status'])->name('cart.status')->middleware('auth');
     Route::get('cart/cancel', [CartController::class, 'cancel'])->name('cart.cancel');
 });
+
+// Support (public hub page)
+Route::get('support', fn () => view('support.index'))->name('support.index');
 
 // Developer routes
 Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class), EnsureFeaturesAreActive::using(ShowPlugins::class)])->prefix('dashboard/developer')->group(function (): void {

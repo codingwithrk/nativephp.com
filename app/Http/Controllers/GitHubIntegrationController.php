@@ -138,7 +138,7 @@ class GitHubIntegrationController extends Controller
             return back()->with('error', 'Please connect your GitHub account first.');
         }
 
-        if (! $user->hasMaxAccess()) {
+        if (! $user->hasMobileRepoAccess()) {
             return back()->with('error', 'You need an active Max license to access the mobile repository.');
         }
 
@@ -164,11 +164,11 @@ class GitHubIntegrationController extends Controller
             return back()->with('error', 'Please connect your GitHub account first.');
         }
 
-        // Check if user has a Plugin Dev Kit license
+        // Check if user has a Plugin Dev Kit license or is an Ultra team member
         $pluginDevKit = Product::where('slug', 'plugin-dev-kit')->first();
 
-        if (! $pluginDevKit || ! $user->hasProductLicense($pluginDevKit)) {
-            return back()->with('error', 'You need a Plugin Dev Kit license to access the claude-code repository.');
+        if (! $user->hasActiveUltraSubscription() && ! $user->isUltraTeamMember() && (! $pluginDevKit || ! $user->hasProductLicense($pluginDevKit))) {
+            return back()->with('error', 'You need a Plugin Dev Kit license, Ultra subscription, or Ultra team membership to access the claude-code repository.');
         }
 
         $github = GitHubOAuth::make();
