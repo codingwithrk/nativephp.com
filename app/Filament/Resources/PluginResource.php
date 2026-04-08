@@ -42,8 +42,12 @@ class PluginResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->inlineLabel()
+            ->columns(1)
             ->schema([
                 Schemas\Components\Section::make('Plugin Details')
+                    ->inlineLabel()
+                    ->columns(1)
                     ->schema([
                         Forms\Components\Placeholder::make('logo_preview')
                             ->label('Logo')
@@ -73,19 +77,22 @@ class PluginResource extends Resource
                         Forms\Components\Select::make('status')
                             ->options(PluginStatus::class),
 
-                        Forms\Components\Textarea::make('description')
-                            ->label('Description')
+                        Forms\Components\Toggle::make('is_official')
+                            ->label('Official (First-Party)')
+                            ->helperText('Official plugins are free for Ultra subscribers'),
 
-                            ->columnSpanFull(),
+                        Forms\Components\Textarea::make('description')
+                            ->label('Description'),
 
                         Forms\Components\Textarea::make('rejection_reason')
                             ->label('Rejection Reason')
 
                             ->visible(fn (?Plugin $record) => $record?->isRejected()),
-                    ])
-                    ->columns(2),
+                    ]),
 
                 Schemas\Components\Section::make('Review Checks')
+                    ->inlineLabel()
+                    ->columns(1)
                     ->schema([
                         Forms\Components\Placeholder::make('reviewed_at_display')
                             ->label('Last Reviewed')
@@ -135,7 +142,6 @@ class PluginResource extends Resource
                                 ? '✅ '.($record->review_checks['android_min_version'] ?? '')
                                 : '❌ Missing'),
                     ])
-                    ->columns(4)
                     ->headerActions([
                         Action::make('emailReviewChecks')
                             ->label('Email Developer')
@@ -163,6 +169,8 @@ class PluginResource extends Resource
                     ->visible(fn (?Plugin $record) => $record?->review_checks !== null),
 
                 Schemas\Components\Section::make('Developer Submission Details')
+                    ->inlineLabel()
+                    ->columns(1)
                     ->schema([
                         Forms\Components\Placeholder::make('support_channel_display')
                             ->label('Support Channel')
@@ -175,6 +183,8 @@ class PluginResource extends Resource
                     ->visible(fn (?Plugin $record) => $record !== null),
 
                 Schemas\Components\Section::make('Submission Info')
+                    ->inlineLabel()
+                    ->columns(1)
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->relationship('user', 'email')
@@ -192,8 +202,7 @@ class PluginResource extends Resource
                         Forms\Components\DateTimePicker::make('approved_at')
 
                             ->visible(fn (?Plugin $record) => $record?->approved_at !== null),
-                    ])
-                    ->columns(2),
+                    ]),
             ]);
     }
 
@@ -247,6 +256,10 @@ class PluginResource extends Resource
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                Tables\Columns\ToggleColumn::make('is_official')
+                    ->label('Official')
+                    ->sortable(),
+
                 Tables\Columns\ToggleColumn::make('featured')
                     ->sortable(),
 
@@ -279,6 +292,8 @@ class PluginResource extends Resource
                     ->options(PluginStatus::class),
                 Tables\Filters\SelectFilter::make('type')
                     ->options(PluginType::class),
+                Tables\Filters\TernaryFilter::make('is_official')
+                    ->label('Official'),
                 Tables\Filters\TernaryFilter::make('featured'),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active'),
