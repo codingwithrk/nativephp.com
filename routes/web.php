@@ -4,6 +4,7 @@ use App\Features\ShowAuthButtons;
 use App\Features\ShowPlugins;
 use App\Http\Controllers\ApplinksController;
 use App\Http\Controllers\Auth\CustomerAuthController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\BundleController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CustomerLicenseController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\DiscordIntegrationController;
 use App\Http\Controllers\GitHubAuthController;
 use App\Http\Controllers\GitHubIntegrationController;
 use App\Http\Controllers\LicenseRenewalController;
+use App\Http\Controllers\NotificationUnsubscribeController;
 use App\Http\Controllers\OpenCollectiveWebhookController;
 use App\Http\Controllers\PluginDirectoryController;
 use App\Http\Controllers\PluginWebhookController;
@@ -171,7 +173,8 @@ Route::view('privacy-policy', 'privacy-policy')->name('privacy-policy');
 Route::view('terms-of-service', 'terms-of-service')->name('terms-of-service');
 Route::view('developer-terms', 'developer-terms')->name('developer-terms');
 Route::view('partners', 'partners')->name('partners');
-Route::view('build-my-app', 'build-my-app')->name('build-my-app');
+Route::redirect('build-my-app', '/consulting', 301);
+Route::view('consulting', 'consulting')->name('consulting');
 Route::view('the-vibes', 'the-vibes')->name('the-vibes');
 
 // Public plugin directory routes
@@ -285,6 +288,13 @@ Route::middleware(['guest'])->group(function (): void {
     Route::post('reset-password', [CustomerAuthController::class, 'resetPassword'])->name('password.update');
 
     Route::get('auth/github/login', [GitHubAuthController::class, 'redirect'])->name('login.github');
+});
+
+// Email verification routes
+Route::middleware('auth')->group(function (): void {
+    Route::get('email/verify', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+    Route::post('email/verification-notification', [EmailVerificationController::class, 'resend'])->middleware('throttle:6,1')->name('verification.send');
 });
 
 Route::post('logout', [CustomerAuthController::class, 'logout'])
@@ -405,6 +415,12 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
     Route::post('licenses/{licenseKey}/sub-licenses/{subLicense}/send-email', [CustomerSubLicenseController::class, 'sendEmail'])->name('licenses.sub-licenses.send-email');
 });
 
+// Notification unsubscribe/resubscribe (signed URLs, no auth required)
+Route::middleware('signed')->group(function (): void {
+    Route::get('notifications/unsubscribe/{user}', [NotificationUnsubscribeController::class, 'unsubscribe'])->name('notifications.unsubscribe');
+    Route::get('notifications/resubscribe/{user}', [NotificationUnsubscribeController::class, 'resubscribe'])->name('notifications.resubscribe');
+});
+
 Route::get('.well-known/assetlinks.json', [ApplinksController::class, 'assetLinks']);
 
 Route::post('webhooks/plugins/{secret}', PluginWebhookController::class)->name('webhooks.plugins');
@@ -454,7 +470,7 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
     // Plugin management (keeps customer.plugins.* route names)
     Route::name('customer.')->group(function (): void {
         Route::livewire('plugins', App\Livewire\Customer\Plugins\Index::class)->name('plugins.index');
-        Route::livewire('plugins/submit', App\Livewire\Customer\Plugins\Create::class)->name('plugins.create');
+        Route::livewire('plugins/create', App\Livewire\Customer\Plugins\Create::class)->name('plugins.create');
         Route::livewire('plugins/{vendor}/{package}', App\Livewire\Customer\Plugins\Show::class)->name('plugins.show');
     });
 });

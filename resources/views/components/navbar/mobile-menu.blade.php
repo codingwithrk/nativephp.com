@@ -96,7 +96,7 @@
                     $isUltraActive = request()->routeIs('pricing');
                     $isBlogActive = request()->routeIs('blog*');
                     $isPartnersActive = request()->routeIs('partners*');
-                    $isServicesActive = request()->routeIs('build-my-app');
+                    $isServicesActive = request()->routeIs('consulting');
                     $isCourseActive = request()->routeIs('course');
                     $isSupportActive = request()->routeIs('support.*');
                     $isSponsorActive = request()->routeIs('sponsoring*');
@@ -126,8 +126,8 @@
                     </a>
                 </div>
 
-                {{-- Ultra Link --}}
-                <div>
+                {{-- Ultra Link (mobile only, shown in navbar on desktop) --}}
+                <div class="lg:hidden">
                     <a
                         href="{{ route('pricing') }}"
                         @class([
@@ -231,10 +231,10 @@
                     </a>
                 </div>
 
-                {{-- Services Link --}}
-                <div>
+                {{-- Consulting Link (mobile only, shown in navbar on desktop) --}}
+                <div class="lg:hidden">
                     <a
-                        href="{{ route('build-my-app') }}"
+                        href="{{ route('consulting') }}"
                         @class([
                             'flex items-center gap-2 py-3 transition duration-200',
                             'font-medium' => $isServicesActive,
@@ -250,12 +250,15 @@
                             />
                         @endif
 
-                        <div>Develop</div>
+                        <div class="inline-flex items-center gap-2">
+                            Consulting
+                            <span class="rounded-full bg-emerald-500 px-1.5 py-px text-[10px] font-bold leading-tight text-white">New</span>
+                        </div>
                     </a>
                 </div>
 
-                {{-- Course Link --}}
-                <div>
+                {{-- Course Link (mobile only, shown in navbar on desktop) --}}
+                <div class="lg:hidden">
                     <a
                         href="{{ route('course') }}"
                         @class([
@@ -338,7 +341,7 @@
                                     />
                                 @endif
 
-                                <div>Dashboard</div>
+                                <div>Log in</div>
                             </a>
                         @endauth
                     </div>

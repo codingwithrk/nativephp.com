@@ -78,6 +78,30 @@
             {{-- Doc search (visible on large screens) --}}
 
 
+            {{-- Ultra link (desktop only) --}}
+            <a
+                href="{{ route('pricing') }}"
+                class="hidden items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1.5 text-sm font-medium text-violet-600 transition duration-200 hover:bg-violet-500/20 lg:inline-flex dark:text-violet-400 dark:hover:bg-violet-500/20"
+            >
+                Ultra
+            </a>
+
+            {{-- Course link (desktop only) --}}
+            <a
+                href="{{ route('course') }}"
+                class="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-600 transition duration-200 hover:bg-emerald-500/20 lg:inline-flex dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+            >
+                Masterclass
+            </a>
+
+            {{-- Consulting link (desktop only) --}}
+            <a
+                href="{{ route('consulting') }}"
+                class="hidden items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1.5 text-sm font-medium text-blue-600 transition duration-200 hover:bg-blue-500/20 lg:inline-flex dark:text-blue-400 dark:hover:bg-blue-500/20"
+            >
+                Consulting
+            </a>
+
             {{-- Bifrost button (visible on large screens) --}}
             <div class="hidden lg:block">
                 <x-bifrost-button small />
