@@ -22,10 +22,12 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ShowBlogController;
 use App\Http\Controllers\ShowcaseController;
 use App\Http\Controllers\ShowDocumentationController;
+use App\Http\Controllers\SupportTicketAttachmentController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamUserController;
 use App\Http\Controllers\UltraController;
 use App\Livewire\ClaimDonationLicense;
+use App\Livewire\Customer\Course\LessonShow;
 use App\Livewire\Customer\Dashboard;
 use App\Livewire\Customer\Developer\Onboarding;
 use App\Livewire\Customer\Integrations;
@@ -38,13 +40,13 @@ use App\Livewire\Customer\WallOfLove\Create;
 use App\Livewire\LicenseRenewalSuccess;
 use App\Livewire\OrderSuccess;
 use App\Livewire\PluginDirectory;
+use App\Models\Course;
 use App\Models\Product;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Laravel\Cashier\Cashier;
 use Laravel\Pennant\Middleware\EnsureFeaturesAreActive;
 
 /*
@@ -64,6 +66,7 @@ Route::redirect('docs/1/getting-started/sponsoring', '/sponsor');
 Route::redirect('docs/desktop/1/getting-started/sponsoring', '/sponsor');
 Route::redirect('discord', 'https://discord.gg/nativephp');
 Route::redirect('bifrost', 'https://bifrost.nativephp.com');
+Route::redirect('jump', '/docs/mobile/the-basics/jump');
 Route::redirect('mobile', 'blog/nativephp-for-mobile-is-now-free');
 Route::redirect('ios', 'blog/nativephp-for-mobile-is-now-free');
 Route::redirect('t-shirt', 'blog/nativephp-for-mobile-is-now-free');
@@ -93,8 +96,21 @@ Route::get('course', function () {
     $product = Product::where('slug', 'nativephp-masterclass')->first();
     $alreadyOwned = $user && $product && $product->isOwnedBy($user);
 
+    $course = Course::where('is_published', true)
+        ->with(['modules' => function ($query) {
+            $query->where('is_published', true)->orderBy('sort_order')->withCount('lessons');
+        }])
+        ->first();
+
+    $priceIncreaseAt = config('services.stripe.course_price_increase_at');
+    $priceIncreased = now()->gte($priceIncreaseAt);
+
     return view('course', [
         'alreadyOwned' => $alreadyOwned,
+        'course' => $course,
+        'priceIncreaseAt' => $priceIncreaseAt,
+        'priceIncreased' => $priceIncreased,
+        'currentPrice' => $priceIncreased ? 299 : 199,
     ]);
 })->name('course');
 
@@ -114,37 +130,26 @@ Route::post('course/checkout', function (Request $request) {
         return to_route('course')->with('error', 'You already own this course.');
     }
 
+    $priceIncreased = now()->gte(config('services.stripe.course_price_increase_at'));
+    $priceId = $priceIncreased
+        ? config('services.stripe.course_price_id_299')
+        : config('services.stripe.course_price_id_199');
+
+    if (! $priceId) {
+        return to_route('course')->with('error', 'Course checkout is not configured yet.');
+    }
+
+    $user->createOrGetStripeCustomer();
+
     $cartService = resolve(CartService::class);
     $cart = $cartService->getCart($user);
     $cartService->addProduct($cart, $product);
 
-    $cart->load('items.product');
-    $item = $cart->items->where('product_id', $product->id)->first();
-
-    $user->createOrGetStripeCustomer();
-
     $metadata = ['cart_id' => (string) $cart->id];
 
-    $session = Cashier::stripe()->checkout->sessions->create([
-        'mode' => 'payment',
-        'line_items' => [[
-            'price_data' => [
-                'currency' => strtolower($item->currency),
-                'unit_amount' => $item->product_price_at_addition,
-                'product_data' => [
-                    'name' => $product->name,
-                    'description' => $product->description,
-                ],
-            ],
-            'quantity' => 1,
-        ]],
+    return $user->checkout([$priceId => 1], [
         'success_url' => route('cart.success').'?session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => route('course'),
-        'customer' => $user->stripe_id,
-        'customer_update' => [
-            'name' => 'auto',
-            'address' => 'auto',
-        ],
         'metadata' => $metadata,
         'allow_promotion_codes' => true,
         'billing_address_collection' => 'required',
@@ -157,10 +162,6 @@ Route::post('course/checkout', function (Request $request) {
             ],
         ],
     ]);
-
-    $cart->update(['stripe_checkout_session_id' => $session->id]);
-
-    return redirect($session->url);
 })->name('course.checkout');
 
 Route::view('wall-of-love', 'wall-of-love')->name('wall-of-love');
@@ -173,9 +174,10 @@ Route::view('privacy-policy', 'privacy-policy')->name('privacy-policy');
 Route::view('terms-of-service', 'terms-of-service')->name('terms-of-service');
 Route::view('developer-terms', 'developer-terms')->name('developer-terms');
 Route::view('partners', 'partners')->name('partners');
-Route::redirect('build-my-app', '/consulting', 301);
+Route::view('build-my-app', 'build-my-app')->name('build-my-app');
 Route::view('consulting', 'consulting')->name('consulting');
 Route::view('the-vibes', 'the-vibes')->name('the-vibes');
+Route::view('the-vibes-prospectus', 'the-vibes-prospectus')->name('the-vibes-prospectus');
 
 // Public plugin directory routes
 Route::middleware(EnsureFeaturesAreActive::using(ShowPlugins::class))->group(function (): void {
@@ -368,11 +370,17 @@ Route::middleware(['auth', EnsureFeaturesAreActive::using(ShowAuthButtons::class
     Route::livewire('support/tickets', App\Livewire\Customer\Support\Index::class)->name('support.tickets');
     Route::livewire('support/tickets/create', App\Livewire\Customer\Support\Create::class)->name('support.tickets.create');
     Route::livewire('support/tickets/{supportTicket}', App\Livewire\Customer\Support\Show::class)->name('support.tickets.show');
+    Route::get('support/tickets/{supportTicket}/attachments/{index}', [SupportTicketAttachmentController::class, 'downloadTicketAttachment'])->name('support.tickets.attachment');
+    Route::get('support/tickets/{supportTicket}/replies/{reply}/attachments/{index}', [SupportTicketAttachmentController::class, 'downloadReplyAttachment'])->name('support.tickets.reply.attachment');
 
     Route::livewire('licenses/{licenseKey}', Show::class)->name('licenses.show');
     Route::patch('licenses/{licenseKey}', [CustomerLicenseController::class, 'update'])->name('licenses.update');
     Route::post('plugin-license-key/rotate', [CustomerLicenseController::class, 'rotatePluginLicenseKey'])->name('plugin-license-key.rotate');
     Route::post('claim-free-plugins', [CustomerLicenseController::class, 'claimFreePlugins'])->name('claim-free-plugins');
+
+    // Course
+    Route::livewire('course', App\Livewire\Customer\Course\Index::class)->name('course.index');
+    Route::livewire('course/lessons/{lesson:slug}', LessonShow::class)->name('course.lesson');
 
     // Wall of Love submission
     Route::livewire('wall-of-love/create', Create::class)->name('wall-of-love.create');

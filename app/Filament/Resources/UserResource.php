@@ -110,6 +110,12 @@ class UserResource extends Resource
                         Forms\Components\Placeholder::make('developerAccount.accepted_plugin_terms_at')
                             ->label('Plugin Terms Accepted')
                             ->content(fn (User $record) => $record->developerAccount->accepted_plugin_terms_at?->format('M j, Y g:i A') ?? '—'),
+                        Forms\Components\TextInput::make('developerAccount.payout_percentage')
+                            ->label('Payout Percentage')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(100)
+                            ->suffix('%'),
                         Forms\Components\Placeholder::make('developerAccount.plugin_terms_version')
                             ->label('Terms Version')
                             ->content(fn (User $record) => $record->developerAccount->plugin_terms_version ?? '—'),
